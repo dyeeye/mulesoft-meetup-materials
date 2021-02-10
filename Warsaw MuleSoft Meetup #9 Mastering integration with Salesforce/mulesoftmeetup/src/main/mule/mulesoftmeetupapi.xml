@@ -1,0 +1,279 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:os="http://www.mulesoft.org/schema/mule/os"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd  http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd">
+	<http:listener-config
+		name="mulesoftmeetupapi-httpListenerConfig">
+		<http:listener-connection host="0.0.0.0"
+			port="8081" />
+	</http:listener-config>
+	<apikit:config name="mulesoftmeetupapi-config"
+		api="resource::663dbfb4-91d7-4e35-a32c-3793ff528dfe:mulesoftmeetupapi:1.0.1:raml:zip:mulesoftmeetupapi.raml"
+		outboundHeadersMapName="outboundHeaders"
+		httpStatusVarName="httpStatus" disableValidations="true" />
+	<salesforce:sfdc-config name="Salesforce_Config"
+		doc:name="Salesforce Config"
+		doc:id="c9cc3621-b02c-4f0d-be50-c07245c75a65">
+		<salesforce:basic-connection
+			username="***** ***"
+			password="***** ***" securityToken="***** ***"
+			url="https://login.salesforce.com/services/Soap/u/50.0" />
+	</salesforce:sfdc-config>
+	<flow name="mulesoftmeetupapi-main">
+		<http:listener
+			config-ref="mulesoftmeetupapi-httpListenerConfig" path="/api/*">
+			<http:response
+				statusCode="#[vars.httpStatus default 200]">
+				<http:headers>#[vars.outboundHeaders default {}]</http:headers>
+			</http:response>
+			<http:error-response
+				statusCode="#[vars.httpStatus default 500]">
+				<http:body>#[payload]</http:body>
+				<http:headers>#[vars.outboundHeaders default {}]</http:headers>
+			</http:error-response>
+		</http:listener>
+		<apikit:router config-ref="mulesoftmeetupapi-config" />
+		<error-handler>
+			<on-error-propagate type="APIKIT:BAD_REQUEST">
+				<ee:transform
+					xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Bad request"}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">400
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+			<on-error-propagate type="APIKIT:NOT_FOUND">
+				<ee:transform
+					xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">404
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+			<on-error-propagate
+				type="APIKIT:METHOD_NOT_ALLOWED">
+				<ee:transform
+					xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Method not allowed"}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">405
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+			<on-error-propagate type="APIKIT:NOT_ACCEPTABLE">
+				<ee:transform
+					xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not acceptable"}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">406
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+			<on-error-propagate
+				type="APIKIT:UNSUPPORTED_MEDIA_TYPE">
+				<ee:transform
+					xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Unsupported media type"}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">415
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+			<on-error-propagate type="APIKIT:NOT_IMPLEMENTED">
+				<ee:transform
+					xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not Implemented"}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">501
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+	<flow name="mulesoftmeetupapi-console">
+		<http:listener
+			config-ref="mulesoftmeetupapi-httpListenerConfig" path="/console/*">
+			<http:response
+				statusCode="#[vars.httpStatus default 200]">
+				<http:headers>#[vars.outboundHeaders default {}]</http:headers>
+			</http:response>
+			<http:error-response
+				statusCode="#[vars.httpStatus default 500]">
+				<http:body>#[payload]</http:body>
+				<http:headers>#[vars.outboundHeaders default {}]</http:headers>
+			</http:error-response>
+		</http:listener>
+		<apikit:console config-ref="mulesoftmeetupapi-config" />
+		<error-handler>
+			<on-error-propagate type="APIKIT:NOT_FOUND">
+				<ee:transform
+					xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">404
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+	<flow
+		name="post:\customers:application\json:mulesoftmeetupapi-config">
+		<ee:transform doc:name="Transform Message"
+			doc:id="d63fcf61-bf22-4573-8451-d1ccaa6c02ae">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/csv
+---
+payload map ( payload01 , indexOfPayload01 ) -> {
+	Id: payload01.sfdcId,
+	Name: (payload01.firstName
+default "") ++ payload01.lastName,
+	Phone: payload01.phone,
+	externalId__c: payload01.externalId
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<salesforce:create-job-bulk-api-v2
+			doc:name="Create job bulk api v 2"
+			doc:id="b8f58ddf-299d-460b-aa50-64db1708c462"
+			config-ref="Salesforce_Config" objectType="Account"
+			operation="upsert" lineEnding="CRLF"
+			externalIdFieldName="externalId__c" />
+		<logger level="INFO"
+			message="#[output application/json --- payload]" />
+		<ee:transform doc:name="Transform Message"
+			doc:id="3788adf8-6b1d-4761-b858-d41fbc6bd2aa">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow
+		name="get:\bulks\(jobId)\failedRecords:mulesoftmeetupapi-config">
+		<salesforce:retrieve-job-failed-results-bulk-v2
+			doc:name="Retrieve job failed results bulk v 2"
+			doc:id="60405295-39f9-416b-8f33-05fa56a0af95"
+			config-ref="Salesforce_Config" id="#[attributes.uriParams.'jobId']" />
+		<logger level="INFO"
+			message="#[output application/json --- payload]" />
+		<ee:transform doc:name="Copy_of_Transform Message"
+			doc:id="c508747e-0bb6-44a8-80ee-213ddf271d1e">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="get:\bulks\(jobId)\status:mulesoftmeetupapi-config">
+		<salesforce:get-job-state-bulk-api-v2
+			doc:name="Get job state bulk api v 2"
+			doc:id="57db0b6c-cab2-49f1-af0a-c38b8a0acc1b"
+			config-ref="Salesforce_Config" id="#[attributes.uriParams.'jobId']" />
+		<logger level="INFO"
+			message="#[output application/json --- payload]" />
+		<ee:transform doc:name="Copy_of_Transform Message"
+			doc:id="1405e83c-1177-4a5e-afaa-33671e4e9c6b">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow
+		name="get:\bulks\(jobId)\successfulRecords:mulesoftmeetupapi-config">
+		<salesforce:retrieve-job-successful-results-bulk-v2
+			doc:name="Retrieve job successful results bulk v 2"
+			doc:id="ffa8adb4-2581-4286-a324-defbaee91043"
+			config-ref="Salesforce_Config" id="#[attributes.uriParams.'jobId']" />
+		<logger level="INFO"
+			message="#[output application/json --- payload]" />
+		<ee:transform doc:name="Copy_of_Transform Message"
+			doc:id="77bb731e-b7f1-4f86-93a8-61929aec0b1c">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="mulesoftmeetupapiFlow"
+		doc:id="746b914f-cb6a-453a-a4a0-96f1518c66e2">
+		<salesforce:replay-channel-listener
+			streamingChannel="/event/AccountChanges__e"
+			doc:name="Replay channel listener"
+			doc:id="bd04a878-81fe-4801-87ed-105689447901"
+			config-ref="Salesforce_Config" replayOption="FROM_REPLAY_ID"
+			replayId="-1" autoReplay="true" />
+		<idempotent-message-validator
+			doc:name="Idempotent Message Validator"
+			doc:id="9a647478-0d7e-4d42-a93b-1d6b441e283e"
+			idExpression="#[payload.data.event.replayId]"
+			valueExpression="#[payload.data.event.replayId]" storePrefix="id">
+			<os:private-object-store
+				alias="customObjectStore" maxEntries="100" entryTtl="1"
+				expirationInterval="10" />
+		</idempotent-message-validator>
+		<logger level="INFO" doc:name="Logger"
+			doc:id="3deaa986-7ad4-4e08-9bbb-48fd9ec6a6a3"
+			message="#[output application/json --- payload]" />
+	</flow>
+</mule>
